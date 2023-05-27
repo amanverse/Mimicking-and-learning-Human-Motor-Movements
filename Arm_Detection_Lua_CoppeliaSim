@@ -1,0 +1,41 @@
+function sysCall_init()
+    -- Get handles for the joints
+    shoulderJoint = sim.getObjectHandle('SHOULDER')
+    elbowJoint = sim.getObjectHandle('ELBOW')
+    
+    -- Start the remote API client
+    simRemoteApi.start(19999)  -- Modify the port if necessary
+    clientID = simRemoteApi.simxStart('127.0.0.1', 19999, true, true, 5000, 5)  -- Modify the IP and port if necessary
+    
+    if clientID ~= -1 then
+        print('Connected to Python program')
+    else
+        print('Failed to connect to Python program')
+    end
+end
+
+function sysCall_actuation()
+    -- Request the angle values from the Python program
+    simRemoteApi.simxAddStatusbarMessage(clientID, 'request_angles', simRemoteApi.simx_opmode_oneshot)
+    
+    -- Receive the angle values from the Python program
+    local result, angles = simRemoteApi.simxGetStringSignal(clientID, 'angles', simRemoteApi.simx_opmode_oneshot_wait)
+    
+    if result == simRemoteApi.simx_return_ok then
+        -- Parse the received angle values
+        local shoulderAngle, elbowAngle = string.match(angles, "(.*),(.*)")
+        
+        -- Convert the angle values to radians
+        shoulderAngle = math.rad(tonumber(shoulderAngle))
+        elbowAngle = math.rad(tonumber(elbowAngle))
+        
+        -- Set the joint target positions
+        sim.setJointTargetPosition(shoulderJoint, shoulderAngle)
+        sim.setJointTargetPosition(elbowJoint, elbowAngle)
+    end
+end
+
+function sysCall_cleanup()
+    -- Stop the remote API client
+    simRemoteApi.simxFinish(clientID)
+end
